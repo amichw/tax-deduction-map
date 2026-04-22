@@ -507,14 +507,30 @@ function hideDropdown() {
 function selectSettlement(s) {
   searchInput.value = "";
   hideDropdown();
-  map.setView([s.lat, s.lon], 13, { animate: true });
-  const marker = markerByName[s.name];
-  if (marker) {
-    const origStyle = { fillOpacity: marker.options.fillOpacity, opacity: marker.options.opacity };
-    marker.setStyle({ fillOpacity: 1, opacity: 1 });
-    marker.openTooltip();
-    setTimeout(() => marker.setStyle(origStyle), 2000);
+
+  const latlng = [s.lat, s.lon];
+
+  // Pan only if settlement is outside the current viewport
+  if (!map.getBounds().contains(latlng)) {
+    map.panTo(latlng, { animate: true });
   }
+
+  // Open tooltip
+  const marker = markerByName[s.name];
+  if (marker) marker.openTooltip();
+
+  // Concentric highlight rings (pixel-fixed so always visible at any zoom)
+  const rings = [
+    L.circleMarker(latlng, { radius: 14, color: '#e2b96a', weight: 2.5, fillOpacity: 0, opacity: 0.95 }),
+    L.circleMarker(latlng, { radius: 24, color: '#e2b96a', weight: 1.5, fillOpacity: 0, opacity: 0.60 }),
+    L.circleMarker(latlng, { radius: 36, color: '#e2b96a', weight: 1,   fillOpacity: 0, opacity: 0.30 }),
+  ].map(r => r.addTo(map));
+
+  // Fade out then remove
+  setTimeout(() => {
+    rings.forEach(r => r.setStyle({ opacity: 0 }));
+    setTimeout(() => rings.forEach(r => map.removeLayer(r)), 600);
+  }, 2200);
 }
 
 searchInput.addEventListener("input", () => {
