@@ -120,6 +120,7 @@
       color: #e2b96a;
     }
     .rate-chip input { display: none; }
+    .filter-group:has(#rate-chips) { display: none; }
 
     /* Search box */
     .search-group { min-width: 180px; }
@@ -526,11 +527,18 @@ function selectSettlement(s) {
     L.circleMarker(latlng, { radius: 36, color: '#e2b96a', weight: 1,   fillOpacity: 0, opacity: 0.30 }),
   ].map(r => r.addTo(map));
 
-  // Fade out then remove
-  setTimeout(() => {
+  // Dismiss rings on map interaction, but not before 2.2s minimum
+  const createdAt = Date.now();
+  const MIN_MS = 2200;
+
+  function dismissRings() {
+    if (Date.now() - createdAt < MIN_MS) return; // too early, ignore
     rings.forEach(r => r.setStyle({ opacity: 0 }));
     setTimeout(() => rings.forEach(r => map.removeLayer(r)), 600);
-  }, 2200);
+    map.off('click dragstart zoomstart', dismissRings);
+  }
+
+  map.on('click dragstart zoomstart', dismissRings);
 }
 
 searchInput.addEventListener("input", () => {
