@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מפת הטבות מס הכנסה 2026 — ישראל</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #e2b96a;
+      white-space: nowrap;
+    }
+
+    /* ── Filter panel ── */
+    .filter-panel {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 200px;
+    }
+
+    .filter-group label {
+      font-size: 0.72rem;
+      color: #9fb3d4;
+      letter-spacing: 0.03em;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 160px;
+      height: 4px;
+      border-radius: 2px;
+      background: #334;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #e2b96a;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      font-size: 0.78rem;
+      color: #e2b96a;
+      font-weight: 600;
+      min-width: 64px;
+      text-align: left;
+      direction: ltr;
+    }
+
+    /* Rate filter checkboxes */
+    .rate-checkboxes {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .rate-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #1e2a45;
+      border: 1px solid #334;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .rate-chip:hover { border-color: #e2b96a; }
+    .rate-chip.active {
+      background: #e2b96a22;
+      border-color: #e2b96a;
+      color: #e2b96a;
+    }
+    .rate-chip input { display: none; }
+
+    /* Search box */
+    .search-group { min-width: 180px; }
+    .search-wrapper { position: relative; }
+
+    #search-input {
+      width: 100%;
+      padding: 6px 10px;
+      background: #2a2a3e;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #eee;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    #search-input:focus { outline: none; border-color: #7c83fd; }
+
+    .search-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: #1e1e2e;
+      border: 1px solid #444;
+      border-radius: 0 0 6px 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 9999;
+    }
+    .search-dropdown.hidden { display: none; }
+
+    .search-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #ddd;
+      text-align: right;
+      direction: rtl;
+    }
+    .search-item:hover, .search-item.active { background: #2a2a4e; color: #fff; }
+
+    /* Stats bar */
+    .stats-bar {
+      font-size: 0.72rem;
+      color: #6a8aac;
+      white-space: nowrap;
+    }
+
+    #count-badge {
+      color: #e2b96a;
+      font-weight: 700;
+    }
+
+    /* ── Map ── */
+    #map {
+      flex: 1;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      background: #16213eee;
+      border: 1px solid #334;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      line-height: 1.8;
+      direction: rtl;
+      min-width: 160px;
+    }
+    .legend h4 {
+      color: #e2b96a;
+      margin-bottom: 6px;
+      font-size: 0.78rem;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.3);
+      flex-shrink: 0;
+    }
+
+    /* ── Custom Tooltip ── */
+    .settlement-tooltip {
+      background: #12203aee;
+      border: 1px solid #e2b96a66;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e0e0e0;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      direction: rtl;
+      min-width: 180px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .settlement-tooltip .tt-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #e2b96a;
+      margin-bottom: 4px;
+    }
+    .settlement-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .settlement-tooltip .tt-label { color: #9fb3d4; }
+    .settlement-tooltip .tt-val { font-weight: 600; color: #e0e0e0; direction: ltr; }
+
+    /* Leaflet tooltip overrides */
+    .leaflet-tooltip {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .leaflet-tooltip::before { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>מפת הטבות מס הכנסה — ישובים מוטבים 2026</h1>
+
+  <div class="filter-panel">
+
+    <!-- Deduction range slider -->
+    <div class="filter-group">
+      <label>ניכוי מינימלי (₪)</label>
+      <div class="slider-row">
+        <input type="range" id="slider-min" min="0" max="53568" step="500" value="0" />
+        <span class="slider-value" id="val-min">0</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>ניכוי מקסימלי (₪)</label>
+      <div class="slider-row">
+        <input type="range" id="slider-max" min="0" max="53568" step="500" value="53568" />
+        <span class="slider-value" id="val-max">53,568</span>
+      </div>
+    </div>
+
+    <!-- Rate filter -->
+    <div class="filter-group">
+      <label>שיעור ניכוי</label>
+      <div class="rate-checkboxes" id="rate-chips"></div>
+    </div>
+
+    <!-- Search box -->
+    <div class="filter-group search-group">
+      <label>חיפוש ישוב</label>
+      <div class="search-wrapper">
+        <input type="text" id="search-input" placeholder="הקלד שם ישוב..." autocomplete="off" dir="rtl" />
+        <div id="search-dropdown" class="search-dropdown hidden"></div>
+      </div>
+    </div>
+
+    <!-- Live count -->
+    <div class="stats-bar">
+      מוצגים <span id="count-badge">—</span> ישובים
+    </div>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  DATA  (injected by generate_map.py)
+// ═══════════════════════════════════════
+const SETTLEMENTS = [{"name": "אבו סנאן", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.9575, "lon": 35.172777777778}, {"name": "אבו קורינאת (יישוב)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.1020379, "lon": 34.9529995}, {"name": "אבו תלול", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.1434, "lon": 34.9137}, {"name": "אביבים", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.089222222222, "lon": 35.472063888889}, {"name": "אביגיל", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.4703, "lon": 34.9474}, {"name": "אבירים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.039569444444, "lon": 35.287408333333}, {"name": "אבן מנחם", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.073827777778, "lon": 35.294938888889}, {"name": "אבן שמואל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.575397222222, "lon": 34.7629}, {"name": "אבני איתן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.8246384, "lon": 35.7667337}, {"name": "אבנת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.2683, "lon": 34.7756}, {"name": "אבשלום", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.195402777778, "lon": 34.331633333333}, {"name": "אדורה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.552222222222, "lon": 35.018888888889}, {"name": "אדוריים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.5128, "lon": 34.9274}, {"name": "אדמית", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.078408333333, "lon": 35.210997222222}, {"name": "אודם", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.1943741, "lon": 35.7483145}, {"name": "אוהד", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.236997222222, "lon": 34.4322}, {"name": "אום בטין", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.280311111111, "lon": 34.884852777778}, {"name": "אופקים", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.283333333333, "lon": 34.616666666667}, {"name": "אור הגנוז", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0051, "lon": 35.445458333333}, {"name": "אור הנר", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.5575, "lon": 34.601997222222}, {"name": "אורטל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.085, "lon": 35.761388888889}, {"name": "אורים", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.303888888889, "lon": 34.5225}, {"name": "אחוזם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.553997222222, "lon": 34.769797222222}, {"name": "אחיהוד", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9078, "lon": 35.1721}, {"name": "איבים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.533597222222, "lon": 34.609697222222}, {"name": "איילת השחר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.022797222222, "lon": 35.577597222222}, {"name": "אילון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0636, "lon": 35.2205}, {"name": "אילות", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.581397222222, "lon": 34.963}, {"name": "איתן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.571997222222, "lon": 34.748397222222}, {"name": "אל -רום", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.1796457, "lon": 35.7721224}, {"name": "אל סייד", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.2832614, "lon": 34.9130197}, {"name": "אלומות", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7068, "lon": 35.545997222222}, {"name": "אלוני הבשן", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0441337, "lon": 35.83924}, {"name": "אלי-עד", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.805058333333, "lon": 35.734127777778}, {"name": "אליאב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.531580555556, "lon": 34.933002777778}, {"name": "אליפז", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.797297222222, "lon": 35.0114}, {"name": "אליפלט", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9474, "lon": 35.5489}, {"name": "אלמגור", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9125, "lon": 35.6021}, {"name": "אלקוש", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.033227777778, "lon": 35.322727777778}, {"name": "אמירים", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.938241666667, "lon": 35.451733333333}, {"name": "אמנון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.904497222222, "lon": 35.5709}, {"name": "אמציה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.532597222222, "lon": 34.9136}, {"name": "אניעם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9568708, "lon": 35.7397621}, {"name": "אספר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.488, "lon": 34.993}, {"name": "אפיק", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.779722222222, "lon": 35.701388888889}, {"name": "אפיקים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.6796, "lon": 35.5778}, {"name": "ארגמן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.1412, "lon": 35.549}, {"name": "ארז", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.559897222222, "lon": 34.566097222222}, {"name": "אשבול", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4465, "lon": 34.667097222222}, {"name": "אשבל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8768, "lon": 35.3061}, {"name": "אשדות יעקב (איחוד)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.65805556, "lon": 35.58194444}, {"name": "אשחר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.884866666667, "lon": 35.301347222222}, {"name": "אשכולות", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4256, "lon": 34.6403}, {"name": "אשל הנשיא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.326827777778, "lon": 34.697497222222}, {"name": "אשלים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.962497222222, "lon": 34.7015}, {"name": "אשקלון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.665833333333, "lon": 34.566388888889}, {"name": "אשרת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9716, "lon": 35.1554}, {"name": "באר אורה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.711097222222, "lon": 34.9791}, {"name": "באר מילכה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.932311111111, "lon": 34.407680555556}, {"name": "בארי", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.423888888889, "lon": 34.489722222222}, {"name": "בוסתן הגליל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9512, "lon": 35.082797222222}, {"name": "בוקעאתא", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.201388888889, "lon": 35.779722222222}, {"name": "בטחה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.334397222222, "lon": 34.632397222222}, {"name": "ביר הדאג'", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.0262625, "lon": 34.7031024}, {"name": "ביריי ה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.9553, "lon": 35.4467}, {"name": "בית ג'ן", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 32.9653591, "lon": 35.3764034}, {"name": "בית הגדי", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.424497222222, "lon": 34.6062}, {"name": "בית הלל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2075, "lon": 35.605697222222}, {"name": "בית העמק", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.971097222222, "lon": 35.144897222222}, {"name": "בית הערבה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.7301, "lon": 35.4522}, {"name": "בית זרע", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.688897222222, "lon": 35.573397222222}, {"name": "בית חוגלה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.8267, "lon": 35.4403}, {"name": "בית יוסף", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.558597222222, "lon": 35.551697222222}, {"name": "בית קמה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.445588888889, "lon": 34.760544444444}, {"name": "בית שאן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.496111111111, "lon": 35.498888888889}, {"name": "בן עמ י", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.0065, "lon": 35.1246}, {"name": "בני דקלים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.51772118, "lon": 34.91734695}, {"name": "בני יהוד ה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.801106, "lon": 35.663113}, {"name": "בני נצרים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.161978, "lon": 34.329889}, {"name": "בענה", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.928488888889, "lon": 35.267786111111}, {"name": "בצת", "rate": 12, "ceiling": 186600, "deduction": 22392, "lat": 33.0707, "lon": 35.135897222222}, {"name": "בר יוחא י", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.997888888889, "lon": 35.448938888889}, {"name": "ברור חי ל", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.5577, "lon": 34.646997222222}, {"name": "ברוש", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.370797222222, "lon": 34.633}, {"name": "ברעם", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.058333333333, "lon": 35.433333333333}, {"name": "בתרון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.223801366469, "lon": 35.54062623696}, {"name": "ג'דיידה-מכר", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.928333333333, "lon": 35.156944444444}, {"name": "ג'ולס", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8911, "lon": 35.1672}, {"name": "ג'ש (גוש חלב)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0239309, "lon": 35.4450316}, {"name": "גבולות", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.2103, "lon": 34.466097222222}, {"name": "גבים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.5075, "lon": 34.598611111111}, {"name": "גבעולים", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.396697222222, "lon": 34.5915}, {"name": "גבעות בר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3566, "lon": 34.756197222222}, {"name": "גבעת יואב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.7967624, "lon": 35.681303}, {"name": "גברעם", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.592197222222, "lon": 34.612697222222}, {"name": "גדות", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.018, "lon": 35.617197222222}, {"name": "גונן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.122397222222, "lon": 35.646397222222}, {"name": "גורן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0566, "lon": 35.239197222222}, {"name": "גורנות הגליל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.060327777778, "lon": 35.248877777778}, {"name": "גילון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9031, "lon": 35.2357}, {"name": "גילת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.328497222222, "lon": 34.649997222222}, {"name": "גינוסר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8475, "lon": 35.522777777778}, {"name": "גיתה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.966558333333, "lon": 35.239197222222}, {"name": "געתון", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.006197222222, "lon": 35.2145}, {"name": "גרופי ת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.943597222222, "lon": 35.068697222222}, {"name": "גשור", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8191803, "lon": 35.716008}, {"name": "גשר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.621302777778, "lon": 35.5521}, {"name": "גשר הזיו", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.039, "lon": 35.111297222222}, {"name": "דביר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.412297222222, "lon": 34.825697222222}, {"name": "דגניה א'", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7084791, "lon": 35.5748582}, {"name": "דגניה ב'", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.6999198, "lon": 35.5747095}, {"name": "דוב\"ב", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0524574, "lon": 35.4074874}, {"name": "דורו ת", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.506397222222, "lon": 34.6454}, {"name": "דייר אל-אסד", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.9076, "lon": 35.2172}, {"name": "דייר חנ א", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.8577, "lon": 35.3683}, {"name": "דימונה", "rate": 18, "ceiling": 245400, "deduction": 44172, "lat": 31.07, "lon": 35.03}, {"name": "דישון", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.081572222222, "lon": 35.516858333333}, {"name": "דלתון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0161, "lon": 35.487497222222}, {"name": "דן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.240277777778, "lon": 35.653055555556}, {"name": "דפנה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.23, "lon": 35.638611111111}, {"name": "דקל", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.1947, "lon": 34.3485}, {"name": "דריג'את", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.299416666667, "lon": 35.076213888889}, {"name": "האון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.724727777778, "lon": 35.621838888889}, {"name": "הגושרים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.220833333333, "lon": 35.623611111111}, {"name": "הילה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0358267, "lon": 35.2443398}, {"name": "הר עמשא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.343297222222, "lon": 35.1017}, {"name": "הררית", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.846111111111, "lon": 35.368055555556}, {"name": "זיקים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.6079, "lon": 34.521797222222}, {"name": "זמרת", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.448197222222, "lon": 34.550697222222}, {"name": "זרועה", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.4582, "lon": 34.6246}, {"name": "חג י", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4607, "lon": 35.0694}, {"name": "חד-נס", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.928396, "lon": 35.6429709}, {"name": "חולית", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2301, "lon": 34.326597222222}, {"name": "חולתה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.051697222222, "lon": 35.609697222222}, {"name": "חוסן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.998197222222, "lon": 35.297497222222}, {"name": "חוסנייה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.900688888889, "lon": 35.322547222222}, {"name": "חוקו ק", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.879897222222, "lon": 35.4958}, {"name": "חורה", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.294166666667, "lon": 34.931111111111}, {"name": "חורפי ש", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 33.017777777778, "lon": 35.346111111111}, {"name": "חזון", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.9061, "lon": 35.3937}, {"name": "חלוץ", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.950674, "lon": 35.3121922}, {"name": "חלץ", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.578097222222, "lon": 34.658}, {"name": "חמדיה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.5202, "lon": 35.519797222222}, {"name": "חמדת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.9488949, "lon": 35.4245296}, {"name": "חניתה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0876, "lon": 35.173497222222}, {"name": "חספין", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7929, "lon": 35.7303}, {"name": "חצבה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.7677, "lon": 35.2802}, {"name": "חצור הגלילי ת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.979472222222, "lon": 35.543475}, {"name": "חצרים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.240277777778, "lon": 34.713888888889}, {"name": "חרשים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9564, "lon": 35.3282}, {"name": "טבריה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.789722222222, "lon": 35.524722222222}, {"name": "טובא-זנגרייה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.9663767, "lon": 35.5938241}, {"name": "טירת צב י", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.421944444444, "lon": 35.528333333333}, {"name": "טל-אל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.926997222222, "lon": 35.1792}, {"name": "טללים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.9921, "lon": 34.771997222222}, {"name": "טמרה", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.851147222222, "lon": 35.207108333333}, {"name": "טנא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4033, "lon": 34.9322}, {"name": "טפחו ת", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.8691, "lon": 35.422497222222}, {"name": "יאנוח-ג'ת", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.9819, "lon": 35.2499}, {"name": "יבול", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.189197222222, "lon": 34.319297222222}, {"name": "יד מרדכ י", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.588611111111, "lon": 34.558333333333}, {"name": "יהל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.084097222222, "lon": 35.1291}, {"name": "יובל", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.246697222222, "lon": 35.598197222222}, {"name": "יובלים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8778, "lon": 35.272}, {"name": "יונדב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.385527777778, "lon": 35.00375}, {"name": "יונתן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.9363, "lon": 35.794497222222}, {"name": "יושיביה", "rate": 14, "ceiling": 213240, "deduction": 29854, "lat": 31.4431, "lon": 34.6101}, {"name": "יחיעם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.995697222222, "lon": 35.2205}, {"name": "יטבתה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.895555555556, "lon": 35.06}, {"name": "יכינ י", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.483333333333, "lon": 34.6}, {"name": "יסוד המעלה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.056111111111, "lon": 35.604166666667}, {"name": "יסעור", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9005, "lon": 35.1662}, {"name": "יע ד", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.878883333333, "lon": 35.242575}, {"name": "יערה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.067, "lon": 35.1848}, {"name": "יפי ת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.061483333333, "lon": 35.474080555556}, {"name": "יפת ח", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.127697222222, "lon": 35.551697222222}, {"name": "יראון", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.076997222222, "lon": 35.4549}, {"name": "ירדנה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.566697222222, "lon": 35.5638}, {"name": "ירוחם", "rate": 18, "ceiling": 245400, "deduction": 44172, "lat": 30.988888888889, "lon": 34.933888888889}, {"name": "ירכא", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.933333333333, "lon": 35.183333333333}, {"name": "ישע", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2467, "lon": 34.400197222222}, {"name": "יתד", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.206197222222, "lon": 34.326797222222}, {"name": "כאבול", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.868333333333, "lon": 35.211388888889}, {"name": "כברי", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.020897222222, "lon": 35.149}, {"name": "כדיתה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0058, "lon": 35.4683}, {"name": "כורזים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.910297222222, "lon": 35.550697222222}, {"name": "כחל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8918, "lon": 35.509597222222}, {"name": "כחלה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.2152, "lon": 34.9449}, {"name": "כיסופים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.374166666667, "lon": 34.399444444444}, {"name": "כישור", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.947619444444, "lon": 35.249888888889}, {"name": "כליל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9823, "lon": 35.197097222222}, {"name": "כלנית", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.873947222222, "lon": 35.455091666667}, {"name": "כמאנה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.911038888889, "lon": 35.338697222222}, {"name": "כמהין", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.9, "lon": 34.416666666667}, {"name": "כמון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.911, "lon": 35.3607}, {"name": "כנף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8700272, "lon": 35.6982707}, {"name": "כנרת (מושבה)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.72249722, "lon": 35.5643}, {"name": "כנרת (קבוצה)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.72249722, "lon": 35.5643}, {"name": "כסיפה", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.2452491, "lon": 35.0951505}, {"name": "כסרא-סמיע", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 32.963827777778, "lon": 35.302308333333}, {"name": "כפר בלום", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.172222222222, "lon": 35.609722222222}, {"name": "כפר גלעד י", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2425, "lon": 35.575}, {"name": "כפר הנשיא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.975, "lon": 35.603888888889}, {"name": "כפר חושן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.012330555556, "lon": 35.441488888889}, {"name": "כפר חנניה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.9157, "lon": 35.4226}, {"name": "כפר חרו ב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7625813, "lon": 35.6628467}, {"name": "כפר יאסיף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.954722222222, "lon": 35.165277777778}, {"name": "כפר מימון", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.431897222222, "lon": 34.536297222222}, {"name": "כפר מסריק", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.890797222222, "lon": 35.099697222222}, {"name": "כפר סאלד", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.195277777778, "lon": 35.6575}, {"name": "כפר עזה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.483697222222, "lon": 34.533997222222}, {"name": "כפר ראש הנקרה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0788, "lon": 35.1043}, {"name": "כפר רופין", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.4575, "lon": 35.555833333333}, {"name": "כפר שמאי", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.9568, "lon": 35.457005555556}, {"name": "כרכום", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9305, "lon": 35.6081}, {"name": "כרם בן זמרה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0382, "lon": 35.4686}, {"name": "כרם שלום", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.227697222222, "lon": 34.284597222222}, {"name": "כרמי קטיף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.537833333333, "lon": 34.911944444444}, {"name": "כרמיאל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9, "lon": 35.283333333333}, {"name": "כרמייה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 32.8827, "lon": 35.6747}, {"name": "כרמים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3336, "lon": 34.9185}, {"name": "כרמל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.5374, "lon": 35.0993}, {"name": "לבון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.941497222222, "lon": 35.287397222222}, {"name": "לבנים", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.0771293, "lon": 34.8226476}, {"name": "להב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.378297222222, "lon": 34.870397222222}, {"name": "להבות הבשן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.1415, "lon": 35.646597222222}, {"name": "לוחמי הגיטאו ת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9723, "lon": 35.0923}, {"name": "לוטם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.882597222222, "lon": 35.3573}, {"name": "לוטן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.985497222222, "lon": 35.088297222222}, {"name": "לימן", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.058997222222, "lon": 35.1129}, {"name": "לפידו ת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.959338888889, "lon": 35.261669444444}, {"name": "לקיה", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.326388888889, "lon": 34.858333333333}, {"name": "מבוא חמה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7363463, "lon": 35.6556132}, {"name": "מבועים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4492, "lon": 34.6535}, {"name": "מבטחים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2422, "lon": 34.407897222222}, {"name": "מבקיעים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.6216, "lon": 34.578}, {"name": "מג'ד אל-כרום", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.9220089, "lon": 35.256722}, {"name": "מג'דל שמס", "rate": 20, "ceiling": 259920, "deduction": 51984, "lat": 33.2677595, "lon": 35.7690612}, {"name": "מגאר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.8858202, "lon": 35.4062022}, {"name": "מגדל", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.839077777778, "lon": 35.499294444444}, {"name": "מגן", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.299722222222, "lon": 34.426388888889}, {"name": "מדרשת בן גוריון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.8515927, "lon": 34.7825759}, {"name": "מולדה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.2582313, "lon": 34.9824198}, {"name": "מורן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9194, "lon": 35.395497222222}, {"name": "מזרעה", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.983333333333, "lon": 35.098333333333}, {"name": "מחולה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.2025, "lon": 35.566}, {"name": "מחנה טלי", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.7867, "lon": 35.5534}, {"name": "מחנה יוכבד", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.4751, "lon": 34.9533}, {"name": "מחנה יפה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.6631, "lon": 35.1089}, {"name": "מחנה יתיר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3478, "lon": 35.0606}, {"name": "מחניים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9893, "lon": 35.5703}, {"name": "מטולה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.278888888889, "lon": 35.576666666667}, {"name": "מיצר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7686851, "lon": 35.7369807}, {"name": "מירון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.983333333333, "lon": 35.441666666667}, {"name": "מכחול", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.288611111111, "lon": 35.075833333333}, {"name": "מכמנים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.905833333333, "lon": 35.327222222222}, {"name": "מלילות", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.388997222222, "lon": 34.594797222222}, {"name": "מלכייה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0182, "lon": 35.4072}, {"name": "מנוף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.852497222222, "lon": 35.2394}, {"name": "מנות", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.038697222222, "lon": 35.195397222222}, {"name": "מנחמיה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.6677, "lon": 35.554}, {"name": "מנרה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.195833333333, "lon": 35.544444444444}, {"name": "מסדה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.68339722, "lon": 35.5985}, {"name": "מסלול", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.3243, "lon": 34.5884}, {"name": "מסעדה", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 33.233055555556, "lon": 35.740833333333}, {"name": "מעגלים", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.396697222222, "lon": 34.598797222222}, {"name": "מעגן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.706297222222, "lon": 35.599897222222}, {"name": "מעוז חיים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.493038888889, "lon": 35.550641666667}, {"name": "מעון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.3924, "lon": 35.013}, {"name": "מעונה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.017497222222, "lon": 35.258497222222}, {"name": "מעיין ברוך", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.2411, "lon": 35.6088}, {"name": "מעיליא", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.025158333333, "lon": 35.259558333333}, {"name": "מעלה גמלא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8899257, "lon": 35.684851}, {"name": "מעלות-תרשיחא", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 33.016666666667, "lon": 35.270833333333}, {"name": "מפלסים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.501897222222, "lon": 34.564397222222}, {"name": "מצדות יהוד ה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.3946, "lon": 34.8984}, {"name": "מצובה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.063297222222, "lon": 35.1582}, {"name": "מצפה רמון", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 30.612777777778, "lon": 34.801666666667}, {"name": "מצפה שלם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.5772, "lon": 35.4388}, {"name": "מרגליות", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.2148047, "lon": 35.5444859}, {"name": "מרום גולן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.1321192, "lon": 35.7773161}, {"name": "מרחב עם", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 30.887283333333, "lon": 34.828763888889}, {"name": "משאבי שדה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.003797222222, "lon": 34.7882}, {"name": "משגב עם", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.247777777778, "lon": 35.548333333333}, {"name": "משואה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.25485, "lon": 34.86968}, {"name": "משכיות", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.6272162, "lon": 34.7759251}, {"name": "משמר הירדן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.005, "lon": 35.5989}, {"name": "משמר הנגב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.364444444444, "lon": 34.718888888889}, {"name": "מתת", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.040408333333, "lon": 35.354847222222}, {"name": "נאות גולן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.7867059, "lon": 35.6929699}, {"name": "נאות הכיכר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.933097222222, "lon": 35.376697222222}, {"name": "נאות מרדכי", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.159936111111, "lon": 35.596688888889}, {"name": "נאות סמדר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.0483, "lon": 35.025397222222}, {"name": "נבטים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.223611111111, "lon": 34.882777777778}, {"name": "נגוהות", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3743, "lon": 35.0099}, {"name": "נהרייה", "rate": 12, "ceiling": 226560, "deduction": 27187, "lat": 33.0148724, "lon": 35.1016842}, {"name": "נוב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.832269, "lon": 35.7831891}, {"name": "נווה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.161978, "lon": 34.329889}, {"name": "נווה או ר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.59, "lon": 35.552777777778}, {"name": "נווה אטי\"ב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2619578, "lon": 35.7407856}, {"name": "נווה איתן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.491130555556, "lon": 35.531072222222}, {"name": "נווה זוהר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.152091666667, "lon": 35.365161111111}, {"name": "נווה זי ו", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.027, "lon": 35.1846}, {"name": "נווה חריף", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.0365, "lon": 35.038697222222}, {"name": "נועם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.567238888889, "lon": 34.7889}, {"name": "נוף הגליל", "rate": 12, "ceiling": 226560, "deduction": 27187, "lat": 32.716666666667, "lon": 35.333333333333}, {"name": "נחל עוז", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4725, "lon": 34.4978}, {"name": "נחף", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.931944444444, "lon": 35.3175}, {"name": "נטועה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.064788888889, "lon": 35.322769444444}, {"name": "נטור", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.8538055, "lon": 35.7514617}, {"name": "נטע", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.478329, "lon": 34.926518}, {"name": "ניצנה (קהילת חינוך)", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.885983333333, "lon": 34.422569444444}, {"name": "ניצני סינ י", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.903652777778, "lon": 34.396519444444}, {"name": "ניר יצח ק", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2373, "lon": 34.3571}, {"name": "ניר משה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.477697222222, "lon": 34.631197222222}, {"name": "ניר עו ז", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.310197222222, "lon": 34.402097222222}, {"name": "ניר עם", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.5194, "lon": 34.580897222222}, {"name": "ניר עקיבא", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.469897222222, "lon": 34.6467}, {"name": "נירים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.335, "lon": 34.395833333333}, {"name": "נמרוד", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2452094, "lon": 35.7510271}, {"name": "נס עמים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.966666666667, "lon": 35.116666666667}, {"name": "נעמ\"ה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0291, "lon": 35.7433}, {"name": "נתיב העשרה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.5709, "lon": 34.5394}, {"name": "נתיב השיירה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9947, "lon": 35.1368}, {"name": "נתיבות", "rate": 16, "ceiling": 226560, "deduction": 36250, "lat": 31.416666666667, "lon": 34.583333333333}, {"name": "סאג'ור", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.9420108, "lon": 35.3447234}, {"name": "סאסא", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.026897222222, "lon": 35.3945}, {"name": "סוסיה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.4117, "lon": 35.1211}, {"name": "סופה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2373, "lon": 34.3414}, {"name": "סח'נין", "rate": 12, "ceiling": 186000, "deduction": 22320, "lat": 32.866666666667, "lon": 35.3}, {"name": "סלמה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.8936503, "lon": 35.3699046}, {"name": "סמר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.8332, "lon": 35.0219}, {"name": "סנסנה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.344498, "lon": 34.901256}, {"name": "סעד", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4704, "lon": 34.5349}, {"name": "סער", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 33.0285, "lon": 35.1096}, {"name": "ספיר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.6139, "lon": 35.1843}, {"name": "ע'ג'ר", "rate": 20, "ceiling": 259920, "deduction": 51984, "lat": 33.2421, "lon": 35.6174}, {"name": "עבדון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.048297222222, "lon": 35.1805}, {"name": "עברון", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.991388888889, "lon": 35.100277777778}, {"name": "עזוז", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.791763888889, "lon": 34.472522222222}, {"name": "עידן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.80555556, "lon": 35.30027778}, {"name": "עין אל-אסד", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.941169444444, "lon": 35.396388888889}, {"name": "עין ג ב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.782763888889, "lon": 35.639647222222}, {"name": "עין גד י", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.466666666667, "lon": 35.394444444444}, {"name": "עין הבשו ר", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.282197222222, "lon": 34.4502}, {"name": "עין המפרץ", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.902597222222, "lon": 35.096297222222}, {"name": "עין הנצי\"ב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.470197222222, "lon": 35.5024}, {"name": "עין השלושה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.3503, "lon": 34.402597222222}, {"name": "עין זיוון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0962822, "lon": 35.7961971}, {"name": "עין חצב ה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.798055555556, "lon": 35.246666666667}, {"name": "עין יה ב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.6585, "lon": 35.2368}, {"name": "עין יעק ב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.010197222222, "lon": 35.229197222222}, {"name": "עין קניי א", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 33.23694444, "lon": 35.73083333}, {"name": "עין תמ ר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.942, "lon": 35.371897222222}, {"name": "עיר אובו ת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.8088, "lon": 35.2458}, {"name": "עכו", "rate": 12, "ceiling": 226560, "deduction": 27187, "lat": 32.926111111111, "lon": 35.083888888889}, {"name": "עלומים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.451597222222, "lon": 34.513597222222}, {"name": "עלמה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0512, "lon": 35.499897222222}, {"name": "עמוקה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.997719444444, "lon": 35.523838888889}, {"name": "עמיע ד", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.928247222222, "lon": 35.5407}, {"name": "עמיעוז", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2484, "lon": 34.4142}, {"name": "עמיר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.178333333333, "lon": 35.620555555556}, {"name": "עמקה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.979444444444, "lon": 35.163333333333}, {"name": "עצמון שגב", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8659821, "lon": 35.2512054}, {"name": "עראבה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.851111111111, "lon": 35.338611111111}, {"name": "עראמשה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.0886072, "lon": 35.2299769}, {"name": "ערב אל נעים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.8677, "lon": 35.3175}, {"name": "ערד", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.260277777778, "lon": 35.214722222222}, {"name": "ערערה-בנגב", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.1551446, "lon": 35.0226451}, {"name": "עשהאל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.373722222222, "lon": 35.043805555556}, {"name": "עתניאל", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.431, "lon": 35.0702}, {"name": "פארן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.363097222222, "lon": 35.153597222222}, {"name": "פדויים", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.3273, "lon": 34.611197222222}, {"name": "פורייה - כפר עבוד ה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.6903, "lon": 35.5534}, {"name": "פורייה - נווה עוב ד", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.6978, "lon": 35.5551}, {"name": "פורייה עילי ת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.7068, "lon": 35.5572}, {"name": "פטי ש", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.326797222222, "lon": 34.5602}, {"name": "פלך", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.933997222222, "lon": 35.233697222222}, {"name": "פני חב ר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.4244, "lon": 35.1184}, {"name": "פסוטה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.049444444444, "lon": 35.305833333333}, {"name": "פעמי תש\"ז", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4381567, "lon": 34.6930068}, {"name": "פצאל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.044, "lon": 35.5072}, {"name": "פקיעין (בוקייעה )", "rate": 14, "ceiling": 259920, "deduction": 36389, "lat": 32.9775, "lon": 35.333333333333}, {"name": "פקיעין חדשה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.977, "lon": 35.3303}, {"name": "פרו ד", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.932297222222, "lon": 35.433797222222}, {"name": "פרי גן", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.221097222222, "lon": 34.3545}, {"name": "צאלים", "rate": 14, "ceiling": 213240, "deduction": 29854, "lat": 31.2036, "lon": 34.535097222222}, {"name": "צביה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8894552, "lon": 35.3306239}, {"name": "צבעון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.026097222222, "lon": 35.4159}, {"name": "צוח ר", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2356, "lon": 34.426297222222}, {"name": "צופ ר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.560633333333, "lon": 35.181311111111}, {"name": "צוקים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 30.490897222222, "lon": 35.166697222222}, {"name": "צוריאל", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0071, "lon": 35.313058333333}, {"name": "צורי ת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.901958333333, "lon": 35.250641666667}, {"name": "צפת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.965833333333, "lon": 35.498333333333}, {"name": "קדם ערבה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 30.6372, "lon": 35.0503}, {"name": "קדמת צבי", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.0297367, "lon": 35.6970294}, {"name": "קדרים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8984, "lon": 35.474097222222}, {"name": "קורנית", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8442, "lon": 35.2522}, {"name": "קטורה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 29.934166666667, "lon": 35.070833333333}, {"name": "קלחים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.446111111111, "lon": 34.677777777778}, {"name": "קליה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.7267, "lon": 35.443}, {"name": "קלע", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.131592, "lon": 35.6837517}, {"name": "קצר א-סר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7534, "lon": 35.1821}, {"name": "קצרין", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.9903515, "lon": 35.6865282}, {"name": "קריית ארבע", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.5303, "lon": 35.119}, {"name": "קריית שמונה", "rate": 20, "ceiling": 259920, "deduction": 51984, "lat": 33.2075, "lon": 35.569722222222}, {"name": "קשת", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.980733, "lon": 35.8085857}, {"name": "ראמה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.93925, "lon": 35.367113888889}, {"name": "ראס אל-עין", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.916861111111, "lon": 35.372819444444}, {"name": "ראש פינה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.969086111111, "lon": 35.542455555556}, {"name": "רביבים", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.043613888889, "lon": 34.721216666667}, {"name": "רביד", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.8506, "lon": 35.462697222222}, {"name": "רגבה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.976597222222, "lon": 35.098997222222}, {"name": "רהט", "rate": 16, "ceiling": 226560, "deduction": 36250, "lat": 31.3925, "lon": 34.754444444444}, {"name": "רוח מדב ר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.981666666667, "lon": 34.733333333333}, {"name": "רוחמה", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.496677777778, "lon": 34.705638888889}, {"name": "רוע י", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.1218, "lon": 35.5534}, {"name": "רותם", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.37, "lon": 35.53}, {"name": "רחוב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.451, "lon": 35.4884}, {"name": "ריחאנייה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0482032, "lon": 35.4872846}, {"name": "רמות", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8494, "lon": 35.6675}, {"name": "רמות נפתלי", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.1017, "lon": 35.5534}, {"name": "רמת טראמפ", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.1326099, "lon": 35.6906265}, {"name": "רמת מגשימים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.845997222222, "lon": 35.808597222222}, {"name": "רנן", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.338, "lon": 34.6011}, {"name": "רעים", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.386097222222, "lon": 34.460297222222}, {"name": "רקפת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.854597222222, "lon": 35.2655}, {"name": "רתמים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.053611111111, "lon": 34.69}, {"name": "שאר ישוב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2263, "lon": 35.646597222222}, {"name": "שבי דרום", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.465934, "lon": 34.638659}, {"name": "שבי ציון", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.979597222222, "lon": 35.0822}, {"name": "שגב-שלום", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.194398, "lon": 34.8405813}, {"name": "שדה אליהו", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.440197222222, "lon": 35.515}, {"name": "שדה אליעזר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.0452, "lon": 35.564}, {"name": "שדה בוקר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.868889, "lon": 34.7925}, {"name": "שדה דוד", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.576863888889, "lon": 34.683869444444}, {"name": "שדה נחום", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.5253, "lon": 35.481797222222}, {"name": "שדה נחמיה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.186797222222, "lon": 35.622397222222}, {"name": "שדה ניצן", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.229297222222, "lon": 34.420097222222}, {"name": "שדה צבי", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.448797222222, "lon": 34.7126}, {"name": "שדי אברהם", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2127, "lon": 34.3363}, {"name": "שדי תרומות", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.440197222222, "lon": 35.485997222222}, {"name": "שדמות מחולה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.1956, "lon": 35.5693}, {"name": "שדרות", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.525, "lon": 34.596944444444}, {"name": "שובה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4512, "lon": 34.545}, {"name": "שובל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.412777777778, "lon": 34.742777777778}, {"name": "שומרה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.082858333333, "lon": 35.284238888889}, {"name": "שומרייה", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.6094, "lon": 34.8314}, {"name": "שוקדה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4221, "lon": 34.5245}, {"name": "שורשים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.892344444444, "lon": 35.257411111111}, {"name": "שזור", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.933197222222, "lon": 35.3528}, {"name": "שחרות", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 29.904597222222, "lon": 34.999697222222}, {"name": "שיבולים", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.3959, "lon": 34.6077}, {"name": "שיזף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.001666666667, "lon": 34.765555555556}, {"name": "שיטים", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 30.17495894, "lon": 35.01610932}, {"name": "שייח' דנון", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.9943175, "lon": 35.1479211}, {"name": "שכניה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.8479, "lon": 35.247997222222}, {"name": "שלווה", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.563611111111, "lon": 34.768055555556}, {"name": "שלווה במדבר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 30.833277777778, "lon": 34.736555555556}, {"name": "שלומי", "rate": 20, "ceiling": 259920, "deduction": 51984, "lat": 33.083333333333, "lon": 35.15}, {"name": "שלומית", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.169055555556, "lon": 34.305361111111}, {"name": "שמיר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.165397222222, "lon": 35.660697222222}, {"name": "שמעה", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 31.5241, "lon": 35.0738}, {"name": "שמרת", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9512, "lon": 35.095597222222}, {"name": "שני (ליבנה)", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3562772, "lon": 35.0692807}, {"name": "שניר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 33.2404, "lon": 35.677797222222}, {"name": "שעב", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.888888888889, "lon": 35.236944444444}, {"name": "שעל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 33.1167, "lon": 35.7184}, {"name": "שער הגולן", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.6865, "lon": 35.603297222222}, {"name": "שפר", "rate": 10, "ceiling": 180000, "deduction": 18000, "lat": 32.944, "lon": 35.4361}, {"name": "שקף", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.515397222222, "lon": 34.935997222222}, {"name": "שרשרת", "rate": 14, "ceiling": 180000, "deduction": 25200, "lat": 31.404497222222, "lon": 34.603297222222}, {"name": "שתולה", "rate": 14, "ceiling": 219960, "deduction": 30794, "lat": 33.085538888889, "lon": 35.313158333333}, {"name": "תאשור", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3718709, "lon": 34.6437068}, {"name": "תדהר", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.3793, "lon": 34.629397222222}, {"name": "תובל", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 32.9288, "lon": 35.245697222222}, {"name": "תושייה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4332368, "lon": 34.5411813}, {"name": "תל קציר", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.7058, "lon": 35.618}, {"name": "תל שבע", "rate": 18, "ceiling": 259920, "deduction": 46786, "lat": 31.249166666667, "lon": 34.859444444444}, {"name": "תל תאומים", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 32.4425, "lon": 35.495497222222}, {"name": "תלם", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.4763, "lon": 34.8579}, {"name": "תלמי אליהו", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.2316, "lon": 34.4288}, {"name": "תלמי ביל\"ו", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.437997222222, "lon": 34.6452}, {"name": "תלמי יוסף", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.200097222222, "lon": 34.3641}, {"name": "תלמים", "rate": 7, "ceiling": 146640, "deduction": 10265, "lat": 31.563125, "lon": 34.669416666667}, {"name": "תפרח", "rate": 12, "ceiling": 213240, "deduction": 25589, "lat": 31.326297222222, "lon": 34.6768}, {"name": "תקומה", "rate": 20, "ceiling": 267840, "deduction": 53568, "lat": 31.4512, "lon": 34.545}];
+
+// ═══════════════════════════════════════
+//  COLOR SCALE by deduction amount
+// ═══════════════════════════════════════
+const COLOR_SCALE = [
+  { max: 15000, color: "#4fc3f7", label: "עד 15,000 ₪" },
+  { max: 20000, color: "#29b6f6", label: "15,001–20,000 ₪" },
+  { max: 26000, color: "#ffd54f", label: "20,001–26,000 ₪" },
+  { max: 32000, color: "#ffb300", label: "26,001–32,000 ₪" },
+  { max: 46000, color: "#ff7043", label: "32,001–46,000 ₪" },
+  { max: Infinity, color: "#e53935", label: "מעל 46,000 ₪" },
+];
+
+function getColor(deduction) {
+  for (const band of COLOR_SCALE) {
+    if (deduction <= band.max) return band.color;
+  }
+  return COLOR_SCALE[COLOR_SCALE.length - 1].color;
+}
+
+// Radius scales with deduction (6–16 px)
+function getRadius(deduction) {
+  const MIN_D = 10265, MAX_D = 53568;
+  const MIN_R = 5, MAX_R = 15;
+  return MIN_R + ((deduction - MIN_D) / (MAX_D - MIN_D)) * (MAX_R - MIN_R);
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString("he-IL");
+}
+
+// ═══════════════════════════════════════
+//  MAP INIT
+// ═══════════════════════════════════════
+const map = L.map("map", {
+  center: [31.5, 35.0],
+  zoom: 8,
+  zoomControl: true,
+});
+
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: "abcd",
+  maxZoom: 19,
+}).addTo(map);
+
+// ═══════════════════════════════════════
+//  LEGEND
+// ═══════════════════════════════════════
+const legend = L.control({ position: "bottomright" });
+legend.onAdd = () => {
+  const div = L.DomUtil.create("div", "legend");
+  div.innerHTML = "<h4>ניכוי שנתי (₪)</h4>" +
+    COLOR_SCALE.map(b =>
+      `<div class="legend-row">
+        <div class="legend-dot" style="background:${b.color}"></div>
+        <span>${b.label}</span>
+      </div>`
+    ).join("");
+  return div;
+};
+legend.addTo(map);
+
+// ═══════════════════════════════════════
+//  MARKERS
+// ═══════════════════════════════════════
+const markers = [];
+
+SETTLEMENTS.forEach(s => {
+  if (s.lat == null || s.lon == null) return;
+
+  const color = getColor(s.deduction);
+  const radius = getRadius(s.deduction);
+
+  const circle = L.circleMarker([s.lat, s.lon], {
+    radius,
+    fillColor: color,
+    color: "rgba(255,255,255,0.25)",
+    weight: 1,
+    fillOpacity: 0.85,
+  });
+
+  const tooltipHtml = `
+    <div class="settlement-tooltip">
+      <div class="tt-name">${s.name}</div>
+      <div class="tt-row"><span class="tt-label">שיעור ניכוי</span><span class="tt-val">${s.rate}%</span></div>
+      <div class="tt-row"><span class="tt-label">תקרה</span><span class="tt-val">₪${fmt(s.ceiling)}</span></div>
+      <div class="tt-row"><span class="tt-label">ניכוי שנתי</span><span class="tt-val">₪${fmt(s.deduction)}</span></div>
+    </div>`;
+
+  circle.bindTooltip(tooltipHtml, {
+    permanent: false,
+    direction: "top",
+    opacity: 1,
+    offset: [0, -radius],
+  });
+
+  circle._settlementData = s;
+  circle.addTo(map);
+  markers.push(circle);
+});
+
+// ═══════════════════════════════════════
+//  RATE CHIPS
+// ═══════════════════════════════════════
+const allRates = [...new Set(SETTLEMENTS.map(s => s.rate))].sort((a, b) => a - b);
+let activeRates = new Set(allRates);
+
+const rateContainer = document.getElementById("rate-chips");
+allRates.forEach(rate => {
+  const chip = document.createElement("label");
+  chip.className = "rate-chip active";
+  chip.innerHTML = `<input type="checkbox" value="${rate}" checked />${rate}%`;
+  chip.addEventListener("click", () => {
+    if (activeRates.has(rate)) {
+      activeRates.delete(rate);
+      chip.classList.remove("active");
+    } else {
+      activeRates.add(rate);
+      chip.classList.add("active");
+    }
+    applyFilters();
+  });
+  rateContainer.appendChild(chip);
+});
+
+// ═══════════════════════════════════════
+//  SLIDERS
+// ═══════════════════════════════════════
+const sliderMin = document.getElementById("slider-min");
+const sliderMax = document.getElementById("slider-max");
+const valMin = document.getElementById("val-min");
+const valMax = document.getElementById("val-max");
+const countBadge = document.getElementById("count-badge");
+
+function updateSliderDisplay() {
+  valMin.textContent = fmt(sliderMin.value);
+  valMax.textContent = fmt(sliderMax.value);
+}
+
+sliderMin.addEventListener("input", () => {
+  if (+sliderMin.value > +sliderMax.value) sliderMin.value = sliderMax.value;
+  updateSliderDisplay();
+  applyFilters();
+});
+
+sliderMax.addEventListener("input", () => {
+  if (+sliderMax.value < +sliderMin.value) sliderMax.value = sliderMin.value;
+  updateSliderDisplay();
+  applyFilters();
+});
+
+// ═══════════════════════════════════════
+//  FILTER LOGIC
+// ═══════════════════════════════════════
+function applyFilters() {
+  const minD = +sliderMin.value;
+  const maxD = +sliderMax.value;
+  let visible = 0;
+
+  markers.forEach(marker => {
+    const s = marker._settlementData;
+    const show = s.deduction >= minD && s.deduction <= maxD && activeRates.has(s.rate);
+    if (show) {
+      marker.setStyle({ opacity: 1, fillOpacity: 0.85 });
+      marker.getElement() && (marker.getElement().style.pointerEvents = "auto");
+      visible++;
+    } else {
+      marker.setStyle({ opacity: 0, fillOpacity: 0 });
+      marker.getElement() && (marker.getElement().style.pointerEvents = "none");
+    }
+  });
+
+  countBadge.textContent = visible;
+}
+
+// Initial render
+updateSliderDisplay();
+applyFilters();
+
+// ── SEARCH / AUTOCOMPLETE ──────────────────────────────────
+const searchInput    = document.getElementById("search-input");
+const searchDropdown = document.getElementById("search-dropdown");
+
+// Map name → marker for fast lookup
+const markerByName = {};
+markers.forEach(m => { markerByName[m._settlementData.name] = m; });
+
+function showDropdown(results) {
+  searchDropdown.innerHTML = "";
+  if (results.length === 0) { searchDropdown.classList.add("hidden"); return; }
+  results.forEach(s => {
+    const item = document.createElement("div");
+    item.className = "search-item";
+    item.textContent = s.name;
+    item.addEventListener("mousedown", e => {   // mousedown fires before blur
+      e.preventDefault();
+      selectSettlement(s);
+    });
+    searchDropdown.appendChild(item);
+  });
+  searchDropdown.classList.remove("hidden");
+}
+
+function hideDropdown() {
+  searchDropdown.classList.add("hidden");
+}
+
+function selectSettlement(s) {
+  searchInput.value = "";
+  hideDropdown();
+  map.setView([s.lat, s.lon], 13, { animate: true });
+  const marker = markerByName[s.name];
+  if (marker) {
+    const origStyle = { fillOpacity: marker.options.fillOpacity, opacity: marker.options.opacity };
+    marker.setStyle({ fillOpacity: 1, opacity: 1 });
+    marker.openTooltip();
+    setTimeout(() => marker.setStyle(origStyle), 2000);
+  }
+}
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim();
+  if (q.length < 2) { hideDropdown(); return; }
+  const matches = SETTLEMENTS
+    .filter(s => s.lat != null && s.name.includes(q))
+    .slice(0, 15);
+  showDropdown(matches);
+});
+
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Escape") { hideDropdown(); searchInput.blur(); }
+});
+
+searchInput.addEventListener("blur", () => {
+  setTimeout(hideDropdown, 150);   // delay so mousedown fires first
+});
+</script>
+</body>
+</html>
