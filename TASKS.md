@@ -57,6 +57,13 @@
 - Escape key / blur closes dropdown; `mousedown` + 150ms blur delay prevents race
 - Implemented entirely in `map.html` (CSS + HTML + JS); survives `generate_map.py` regeneration
 
+### Task 7 — Deploy to GitHub Pages ✅
+- Created `.nojekyll` to prevent Jekyll processing Hebrew content
+- Created `index.html` with meta-refresh redirect to `map.html`
+- Published repo: https://github.com/amichw/tax-deduction-map
+- Enabled GitHub Pages from `master` branch root
+- Live URL: https://amichw.github.io/tax-deduction-map/
+
 ---
 
 ## Potential Future Enhancements
