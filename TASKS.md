@@ -57,12 +57,25 @@
 - Escape key / blur closes dropdown; `mousedown` + 150ms blur delay prevents race
 - Implemented entirely in `map.html` (CSS + HTML + JS); survives `generate_map.py` regeneration
 
+### Task 8 — Double-verify geocoding coordinates ✅
+- **Problem**: Some settlements had obviously wrong pins (e.g., משואה pinned near Mediterranean coast instead of Beit She'an Valley; משכיות pinned in deep Negev instead of Upper Galilee)
+- **Root cause**: Wikidata/Nominatim matched to wrong entities with the same Hebrew name
+- **Fix 1**: Promoted `overrides.csv` to **Tier 0** (highest priority) in `geocode.py` — overrides now bypass Wikidata and Nominatim entirely
+- **Fix 2**: Added `verify_geocoding.py` — cross-reference audit tool that compares current coords against all three caches, flags disagreements > 20 km, and writes `data/coord_audit.csv`
+- **Fix 3**: Added correct coordinates for משואה (32.2548, 35.5229) and משכיות (33.0621, 35.2706) to `overrides.csv`
+- **Audit result**: 5 flagged disagreements, all already covered by overrides; 488/488 correctly geocoded
+
 ### Task 7 — Deploy to GitHub Pages ✅
 - Created `.nojekyll` to prevent Jekyll processing Hebrew content
 - Created `index.html` with meta-refresh redirect to `map.html`
 - Published repo: https://github.com/amichw/tax-deduction-map
 - Enabled GitHub Pages from `master` branch root
 - Live URL: https://amichw.github.io/tax-deduction-map/
+
+### Task 9 — Fix slider hiding top deduction tier ✅
+- **Bug**: All 55 Gaza-envelope settlements (₪53,568 deduction) were invisible on page load
+- **Root cause**: `slider-max` had `step="500"`, but 53,568 is not divisible by 500; browser snapped initial value to 53,500, so `applyFilters()` filtered out every settlement with `deduction > 53500`
+- **Fix**: Changed `step="500"` → `step="1"` on `#slider-max` so 53,568 is a valid position
 
 ---
 

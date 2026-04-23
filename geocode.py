@@ -1,9 +1,9 @@
 """
-Geocode Israeli settlements using a three-tier pipeline:
+Geocode Israeli settlements using a four-tier pipeline:
 
+  0. Manual overrides (data/overrides.csv) — highest priority, corrections
   1. Wikidata cache  (data/wikidata_cache.json) — type-safe, bulk-fetched
   2. Nominatim       — place-type filtered (class=place only)
-  3. Manual overrides (data/overrides.csv) — hardcoded coords for hard cases
 
 Reads data/settlements.csv, writes data/settlements_geocoded.csv.
 Nominatim calls cached in data/geocache.json; rate-limited to 1 req/sec.
@@ -187,21 +187,22 @@ def main():
         lat = lon = None
         source = "miss"
 
+        # Tier 0: Manual override (highest priority — corrections trump caches)
+        if name in overrides:
+            lat, lon = overrides[name]
+            source = "override"
+
         # Tier 1: Wikidata
-        lat, lon = lookup_wikidata(name, wd_cache)
-        if lat is not None:
-            source = "wikidata"
+        if lat is None:
+            lat, lon = lookup_wikidata(name, wd_cache)
+            if lat is not None:
+                source = "wikidata"
 
         # Tier 2: Nominatim (only if Wikidata missed)
         if lat is None:
             lat, lon = geocode_nominatim(name, geocache)
             if lat is not None:
                 source = "nominatim"
-
-        # Tier 3: Manual override
-        if lat is None and name in overrides:
-            lat, lon = overrides[name]
-            source = "override"
 
         counts[source] += 1
         status = "✓" if lat is not None else "✗"
